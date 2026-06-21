@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#064e3b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Aktien-Check">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="manifest.json">
+  <title>Aktien-Check</title>
+  <style>
+    :root {
+      --bg:          #f2f2f7;
+      --bg2:         #ffffff;
+      --bg3:         #e5e5ea;
+      --accent:      #064e3b;
+      --text:        #000000;
+      --muted:       #6e6e73;
+      --green:       #34c759;
+      --yellow:      #ff9f0a;
+      --red:         #ff3b30;
+      --green-bg:    #d1fae5;
+      --yellow-bg:   #fef3c7;
+      --red-bg:      #fee2e2;
+      --green-text:  #065f46;
+      --yellow-text: #92400e;
+      --red-text:    #991b1b;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:          #1c1c1e;
+        --bg2:         #2c2c2e;
+        --bg3:         #3a3a3c;
+        --accent:      #10b981;
+        --text:        #ffffff;
+        --muted:       #aeaeb2;
+        --green:       #30d158;
+        --yellow:      #ffd60a;
+        --red:         #ff453a;
+        --green-bg:    #052e16;
+        --yellow-bg:   #451a03;
+        --red-bg:      #450a0a;
+        --green-text:  #bbf7d0;
+        --yellow-text: #fef3c7;
+        --red-text:    #fecaca;
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* PTR */
+    .ptr {
+      position: fixed; top: -60px; left: 50%; transform: translateX(-50%);
+      background: var(--bg2); border-radius: 20px; padding: 8px 16px;
+      font-size: 0.85rem; color: var(--muted);
+      display: flex; align-items: center; gap: 8px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+      transition: top 0.2s ease; z-index: 100;
+    }
+    .ptr.show { top: calc(env(safe-area-inset-top) + 10px); }
+    .ptr-spin {
+      width: 14px; height: 14px; border-radius: 50%;
+      border: 2px solid var(--bg3); border-top-color: var(--accent);
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Header */
+    header {
+      background: #064e3b;
+      padding-top: calc(16px + env(safe-area-inset-top));
+      padding-left: calc(16px + env(safe-area-inset-left));
+      padding-right: calc(16px + env(safe-area-inset-right));
+      padding-bottom: 14px;
+      position: sticky; top: 0; z-index: 50;
+    }
+    .hd-top {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    header h1 {
+      font-size: 1.15rem; font-weight: 700; color: #fff; letter-spacing: -0.3px;
+    }
+    #btn-info {
+      background: rgba(255,255,255,.15); border: none; color: #fff;
+      height: 34px; padding: 0 12px; border-radius: 9px;
+      font-size: 13px; font-weight: 600; letter-spacing: .3px;
+      cursor: pointer; transition: background .15s;
+    }
+    #btn-info:active { background: rgba(255,255,255,.3); }
+
+    #firma {
+      width: 100%;
+      background: rgba(255,255,255,.12);
+      border: none; border-radius: 10px;
+      color: #fff; font-size: 1rem;
+      padding: 10px 12px; outline: none;
+    }
+    #firma::placeholder { color: rgba(255,255,255,.5); }
+
+    /* Main */
+    main {
+      padding: 16px;
+      padding-left: calc(16px + env(safe-area-inset-left));
+      padding-right: calc(16px + env(safe-area-inset-right));
+      padding-bottom: calc(80px + env(safe-area-inset-bottom));
+      display: flex; flex-direction: column; gap: 12px;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg2);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.07);
+    }
+    .card-hd {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .card-title { font-size: 1rem; font-weight: 700; }
+    .card-badge {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: var(--bg3); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; color: var(--muted);
+      transition: background .2s;
+    }
+    .card-badge.green  { background: var(--green); }
+    .card-badge.yellow { background: var(--yellow); }
+    .card-badge.red    { background: var(--red); }
+
+    .card-inputs { display: flex; flex-direction: column; gap: 10px; }
+
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .field label { font-size: 0.78rem; color: var(--muted); font-weight: 500; }
+    .field input {
+      background: var(--bg);
+      border: 1.5px solid var(--bg3);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 1rem;
+      color: var(--text);
+      outline: none;
+      width: 100%;
+      min-height: 44px;
+      transition: border-color .15s;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); }
+
+    .card-result {
+      margin-top: 10px;
+      font-size: 0.88rem; font-weight: 600;
+      color: var(--muted); min-height: 18px;
+    }
+    .card-result.green  { color: var(--green-text); }
+    .card-result.yellow { color: var(--yellow-text); }
+    .card-result.red    { color: var(--red-text); }
+
+    /* Score */
+    .score-box {
+      background: var(--bg2); border-radius: 16px; padding: 20px 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.07);
+    }
+    .score-title {
+      font-size: 0.75rem; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 14px;
+    }
+    .score-empty { color: var(--muted); font-size: 0.88rem; }
+    .score-dots { display: flex; gap: 7px; margin-bottom: 12px; flex-wrap: wrap; }
+    .dot { width: 22px; height: 22px; border-radius: 50%; }
+    .dot.green  { background: var(--green); }
+    .dot.yellow { background: var(--yellow); }
+    .dot.red    { background: var(--red); }
+    .dot.empty  { background: var(--bg3); }
+    .score-summary { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .score-label {
+      font-size: 1rem; font-weight: 800; padding: 4px 14px; border-radius: 20px;
+    }
+    .score-label.green  { background: var(--green-bg);  color: var(--green-text); }
+    .score-label.yellow { background: var(--yellow-bg); color: var(--yellow-text); }
+    .score-label.red    { background: var(--red-bg);    color: var(--red-text); }
+    .score-detail { font-size: 0.82rem; color: var(--muted); }
+    .btn-reset {
+      margin-top: 14px; width: 100%; padding: 12px;
+      background: var(--bg3); color: var(--muted);
+      border: none; border-radius: 10px;
+      font-size: 0.9rem; font-weight: 600; cursor: pointer; min-height: 44px;
+    }
+    .btn-reset:active { opacity: .7; }
+
+    /* Info Overlay */
+    #info-overlay {
+      display: none; position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,.4);
+    }
+    #info-overlay.show { display: flex; align-items: flex-end; }
+    #info-sheet {
+      background: var(--bg2); border-radius: 20px 20px 0 0; width: 100%;
+      max-height: 85vh; display: flex; flex-direction: column;
+      box-shadow: 0 -4px 20px rgba(0,0,0,.15);
+    }
+    #info-sheet-hd {
+      padding: 14px 16px 10px;
+      display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 1px solid var(--bg3); flex-shrink: 0;
+    }
+    #info-sheet-hd strong { font-size: 1rem; }
+    #btn-info-close {
+      background: var(--bg3); border: none; border-radius: 16px;
+      padding: 5px 14px; font-size: 13px; cursor: pointer; color: var(--text);
+    }
+    #info-sheet-body {
+      overflow-y: auto;
+      padding: 16px 16px calc(20px + env(safe-area-inset-bottom));
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .info-section { margin-bottom: 22px; }
+    .info-section h3 {
+      font-size: 0.95rem; font-weight: 700; margin-bottom: 6px;
+      color: var(--green-text);
+    }
+    @media (prefers-color-scheme: dark) {
+      .info-section h3 { color: #34d399; }
+    }
+    .info-section p {
+      font-size: 0.85rem; color: var(--muted); line-height: 1.55; margin-bottom: 5px;
+    }
+    .info-section p strong { color: var(--text); }
+    .info-ampel { display: flex; flex-direction: column; gap: 3px; margin: 6px 0; }
+    .info-ampel span { font-size: 0.82rem; }
+    .info-ampel .g { color: var(--green-text); }
+    .info-ampel .y { color: var(--yellow-text); }
+    .info-ampel .r { color: var(--red-text); }
+    @media (prefers-color-scheme: dark) {
+      .info-ampel .g { color: #86efac; }
+      .info-ampel .y { color: #fcd34d; }
+      .info-ampel .r { color: #fca5a5; }
+    }
+    .info-sources {
+      background: var(--bg); border-radius: 10px; padding: 11px 12px;
+      font-size: 0.8rem; color: var(--muted); line-height: 1.7; margin-top: 7px;
+    }
+    .info-sources strong { color: var(--text); }
+    hr.info-hr { border: none; border-top: 1px solid var(--bg3); margin: 0 0 22px; }
+
+    /* Back to top */
+    .back-top {
+      position: fixed; bottom: calc(24px + env(safe-area-inset-bottom)); right: 16px;
+      width: 40px; height: 40px; border-radius: 50%;
+      background: #064e3b; color: #fff; border: none;
+      font-size: 20px; cursor: pointer;
+      box-shadow: 0 2px 10px rgba(0,0,0,.25);
+      display: none; align-items: center; justify-content: center;
+      z-index: 200; transition: opacity .2s;
+    }
+    .back-top.vis { display: flex; }
+    .back-top:active { opacity: .7; }
+  </style>
+</head>
+<body>
+
+<div class="ptr" id="ptr"><div class="ptr-spin"></div> Eingaben löschen…</div>
+
+<header>
+  <div class="hd-top">
+    <h1>Aktien-Check</h1>
+    <button id="btn-info" onclick="document.getElementById('info-overlay').classList.add('show')" aria-label="Info">Info</button>
+  </div>
+  <input type="text" id="firma" placeholder="Firmenname / Ticker" oninput="saveState()">
+</header>
+
+<main>
+
+  <!-- 1. Rule of 40 -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-title">Rule of 40</span>
+      <div class="card-badge" id="badge-rule40"></div>
+    </div>
+    <div class="card-inputs">
+      <div class="field">
+        <label for="r40-wachstum">Umsatzwachstum YoY (%)</label>
+        <input type="number" step="any" id="r40-wachstum" placeholder="z.B. 25" oninput="recalc()">
+      </div>
+      <div class="field">
+        <label for="r40-marge">Free Cashflow-Marge (%)</label>
+        <input type="number" step="any" id="r40-marge" placeholder="z.B. 18" oninput="recalc()">
+      </div>
+    </div>
+    <div class="card-result" id="result-rule40"></div>
+  </div>
+
+  <!-- 2. EV/Sales -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-title">EV/Sales</span>
+      <div class="card-badge" id="badge-evsales"></div>
+    </div>
+    <div class="card-inputs">
+      <div class="field">
+        <label for="evs-ev">Enterprise Value (Mio. €/$)</label>
+        <input type="number" step="any" id="evs-ev" placeholder="z.B. 50000" oninput="recalc()">
+      </div>
+      <div class="field">
+        <label for="evs-umsatz">Jahresumsatz (Mio. €/$)</label>
+        <input type="number" step="any" id="evs-umsatz" placeholder="z.B. 3000" oninput="recalc()">
+      </div>
+    </div>
+    <div class="card-result" id="result-evsales"></div>
+  </div>
+
+  <!-- 3. Bruttomarge -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-title">Bruttomarge</span>
+      <div class="card-badge" id="badge-gm"></div>
+    </div>
+    <div class="card-inputs">
+      <div class="field">
+        <label for="gm-umsatz">Umsatz (Mio. €/$)</label>
+        <input type="number" step="any" id="gm-umsatz" placeholder="z.B. 3000" oninput="recalc()">
+      </div>
+      <div class="field">
+        <label for="gm-cogs">Herstellungskosten / COGS (Mio. €/$)</label>
+        <input type="number" step="any" id="gm-cogs" placeholder="z.B. 450" oninput="recalc()">
+      </div>
+    </div>
+    <div class="card-result" id="result-gm"></div>
+  </div>
+
+  <!-- 4. NRR -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-title">Net Revenue Retention (NRR)</span>
+      <div class="card-badge" id="badge-nrr"></div>
+    </div>
+    <div class="card-inputs">
+      <div class="field">
+        <label for="nrr-arr">ARR zu Periodenbeginn (Mio. €/$)</label>
+        <input type="number" step="any" id="nrr-arr" placeholder="z.B. 1000" oninput="recalc()">
+      </div>
+      <div class="field">
+        <label for="nrr-exp">Erweiterungsumsatz / Expansion (Mio. €/$)</label>
+        <input type="number" step="any" id="nrr-exp" placeholder="z.B. 180" oninput="recalc()">
+      </div>
+      <div class="field">
+        <label for="nrr-churn">Verlorener Umsatz / Churned Revenue (Mio. €/$)</label>
+        <input type="number" step="any" id="nrr-churn" placeholder="z.B. 50" oninput="recalc()">
+      </div>
+    </div>
+    <div class="card-result" id="result-nrr"></div>
+  </div>
+
+  <!-- 5. SBC-adj. FCF -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-title">SBC-bereinigter Free Cashflow</span>
+      <div class="card-badge" id="badge-sbcfcf"></div>
+    </div>
+    <div class="card-inputs">
+      <div class="field">
+        <label for="sbc-fcf">Free Cashflow (Mio. €/$)</label>
+        <input type="number" step="any" id="sbc-fcf" placeholder="z.B. 800" oninput="recalc()">
+      </div>
+      <div class="field">
+        <label for="sbc-sbc">Stock-Based Compensation / SBC (Mio. €/$)</label>
+        <input type="number" step="any" id="sbc-sbc" placeholder="z.B. 300" oninput="recalc()">
+      </div>
+      <div class="field">
+        <label for="sbc-umsatz">Jahresumsatz – optional, für FCF-Marge (Mio. €/$)</label>
+        <input type="number" step="any" id="sbc-umsatz" placeholder="z.B. 3000" oninput="recalc()">
+      </div>
+    </div>
+    <div class="card-result" id="result-sbcfcf"></div>
+  </div>
+
+  <!-- 6. Churn Rate -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-title">Churn Rate</span>
+      <div class="card-badge" id="badge-churn"></div>
+    </div>
+    <div class="card-inputs">
+      <div class="field">
+        <label for="churn-start">Kunden zu Periodenbeginn</label>
+        <input type="number" step="any" id="churn-start" placeholder="z.B. 5000" oninput="recalc()">
+      </div>
+      <div class="field">
+        <label for="churn-verlust">Verlorene Kunden im Zeitraum</label>
+        <input type="number" step="any" id="churn-verlust" placeholder="z.B. 150" oninput="recalc()">
+      </div>
+    </div>
+    <div class="card-result" id="result-churn"></div>
+  </div>
+
+  <!-- 7. LTV/CAC -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-title">LTV/CAC</span>
+      <div class="card-badge" id="badge-cac"></div>
+    </div>
+    <div class="card-inputs">
+      <div class="field">
+        <label for="cac-ltv">Lifetime Value / LTV (€/$)</label>
+        <input type="number" step="any" id="cac-ltv" placeholder="z.B. 12000" oninput="recalc()">
+      </div>
+      <div class="field">
+        <label for="cac-cac">Customer Acquisition Cost / CAC (€/$)</label>
+        <input type="number" step="any" id="cac-cac" placeholder="z.B. 3000" oninput="recalc()">
+      </div>
+    </div>
+    <div class="card-result" id="result-cac"></div>
+  </div>
+
+  <!-- Pip-Score -->
+  <div class="score-box">
+    <div class="score-title">Pip-Score</div>
+    <div id="pip-score"><p class="score-empty">Noch keine Kennzahlen eingegeben.</p></div>
+    <button class="btn-reset" onclick="clearAll()">Alles löschen</button>
+  </div>
+
+</main>
+
+<!-- Info Overlay -->
+<div id="info-overlay" onclick="if(event.target===this)this.classList.remove('show')">
+  <div id="info-sheet">
+    <div id="info-sheet-hd">
+      <strong>Info</strong>
+      <button id="btn-info-close" onclick="document.getElementById('info-overlay').classList.remove('show')">Schließen</button>
+    </div>
+    <div id="info-sheet-body">
+
+      <div class="info-section">
+        <h3>Über diese App</h3>
+        <p>Aktien-Check analysiert Tech-Aktien nach den sieben quantitativen Kennzahlen von Philipp „Pip" Klöckner (<em>Doppelgänger-Podcast</em>). Du gibst die Werte manuell ein – die App berechnet und zeigt einen Gesamtscore. Alle Eingaben werden lokal auf deinem Gerät gespeichert und bleiben beim nächsten Öffnen erhalten. Pull-to-Refresh löscht alle Felder.</p>
+      </div>
+
+      <hr class="info-hr">
+
+      <div class="info-section">
+        <h3>Rule of 40</h3>
+        <p><strong>Was ist das?</strong> Branchenstandard für Tech-Unternehmen: Umsatzwachstum + FCF-Marge müssen zusammen mindestens 40 ergeben. Stark wachsende Unternehmen dürfen wenig profitabel sein; langsam wachsende müssen das durch hohe Marge ausgleichen.</p>
+        <p><strong>Formel:</strong> Umsatzwachstum YoY (%) + Free Cashflow-Marge (%)</p>
+        <div class="info-ampel">
+          <span class="g">● ≥ 40 – stark</span>
+          <span class="y">● 25–39 – solide</span>
+          <span class="r">● &lt; 25 – schwach</span>
+        </div>
+        <div class="info-sources">
+          <strong>Wo finde ich die Daten?</strong><br>
+          Umsatzwachstum: Income Statement, YoY-Vergleich zweier Quartale oder Jahreswerte.<br>
+          FCF-Marge: Cash Flow Statement → (Operating Cash Flow – Capital Expenditures) / Umsatz × 100.<br>
+          Quellen: sec.gov (10-Q / 10-K), stockanalysis.com, macrotrends.net
+        </div>
+      </div>
+
+      <div class="info-section">
+        <h3>EV/Sales</h3>
+        <p><strong>Was ist das?</strong> Zeigt, wie viel Investoren pro Dollar Umsatz zahlen. Hohe Multiples sind nur bei sehr hohem Wachstum und hoher Bruttomarge vertretbar – alles darüber ist mathematisch kaum mehr einzuholen.</p>
+        <p><strong>Enterprise Value (EV)</strong> = Marktkapitalisierung + Nettoverschuldung (Gesamtschulden – Cash & Äquivalente).</p>
+        <p><strong>Formel:</strong> EV / Jahresumsatz</p>
+        <div class="info-ampel">
+          <span class="g">● &lt; 10× – fair</span>
+          <span class="y">● 10–20× – hoch, bei starkem Wachstum vertretbar</span>
+          <span class="r">● &gt; 20× – sehr teuer</span>
+        </div>
+        <div class="info-sources">
+          <strong>Wo finde ich die Daten?</strong><br>
+          EV direkt: finviz.com oder stockanalysis.com → „Market Cap" → Summary.<br>
+          Manuell: Yahoo Finance Börsenkurs × Aktienanzahl (= Market Cap) + Schulden – Cash (aus Balance Sheet).<br>
+          Umsatz: Income Statement, letzte 12 Monate (TTM).
+        </div>
+      </div>
+
+      <div class="info-section">
+        <h3>Bruttomarge (Gross Margin)</h3>
+        <p><strong>Was ist das?</strong> Wie viel bleibt nach den direkten Herstellungskosten übrig? Echte Software-Unternehmen haben kaum variable Kosten (Code kopieren kostet nichts) und erreichen über 80 %. Hardware- oder serviceintensive Unternehmen liegen deutlich darunter.</p>
+        <p><strong>COGS</strong> = Cost of Goods Sold / Cost of Revenue / Herstellungskosten.</p>
+        <p><strong>Formel:</strong> (Umsatz – COGS) / Umsatz × 100</p>
+        <div class="info-ampel">
+          <span class="g">● ≥ 80 % – echtes Software-Unternehmen</span>
+          <span class="y">● 60–79 % – gemischt</span>
+          <span class="r">● &lt; 60 % – hardware- oder servicelastig</span>
+        </div>
+        <div class="info-sources">
+          <strong>Wo finde ich die Daten?</strong><br>
+          Income Statement → „Gross Profit" und „Cost of Revenue". Auf stockanalysis.com bereits als „Gross Margin %" berechnet. Alternativ: macrotrends.net → Unternehmensname → „Gross Profit Margin".
+        </div>
+      </div>
+
+      <div class="info-section">
+        <h3>Net Revenue Retention (NRR)</h3>
+        <p><strong>Was ist das?</strong> Zeigt, ob Bestandskunden im Folgejahr mehr oder weniger zahlen. Über 100 % = wächst allein durch Bestandskunden. Über 120 % = exzellentes Produkt mit ausgeprägtem Upsell-Potenzial. Pip Klöckners Lieblings-Kennzahl für B2B/SaaS.</p>
+        <p><strong>ARR</strong> = Annual Recurring Revenue (Jährlich wiederkehrender Umsatz).</p>
+        <p><strong>Erweiterungsumsatz</strong> = Zusatzumsätze durch Upsells, Cross-Sells, Upgrades bestehender Kunden.</p>
+        <p><strong>Churned Revenue</strong> = Weggefallene Umsätze durch Kündigungen.</p>
+        <p><strong>Formel:</strong> (ARR Beginn + Erweiterung – Churned Revenue) / ARR Beginn × 100</p>
+        <div class="info-ampel">
+          <span class="g">● ≥ 120 % – stark</span>
+          <span class="y">● 100–119 % – stabil</span>
+          <span class="r">● &lt; 100 % – schrumpft trotz Neukunden</span>
+        </div>
+        <div class="info-sources">
+          <strong>Wo finde ich die Daten?</strong><br>
+          Wird selten direkt ausgewiesen. Suche in: Earnings Call Transcript (seekingalpha.com), Investor Presentations / Analyst Day Materials (IR-Seite des Unternehmens), S-1 Filing bei Börsengang (sec.gov). Suchbegriff: „net revenue retention" oder „net dollar retention".
+        </div>
+      </div>
+
+      <div class="info-section">
+        <h3>SBC-bereinigter Free Cashflow</h3>
+        <p><strong>Was ist das?</strong> Viele Tech-Unternehmen vergüten Mitarbeiter teilweise in Aktienoptionen (Stock-Based Compensation, SBC). Diese Kosten werden oft aus dem „bereinigten" EBITDA herausgerechnet – was den echten Wert für Altaktionäre verschleiert (Verwässerung). Der wahre FCF = FCF nach SBC-Abzug.</p>
+        <p><strong>Free Cashflow (FCF)</strong> = Operating Cash Flow – Capital Expenditures.</p>
+        <p><strong>SBC</strong> = Stock-Based Compensation (eigene Zeile im Cash Flow Statement).</p>
+        <p><strong>Formel:</strong> FCF – SBC = Bereinigter FCF. Marge = Bereinigter FCF / Umsatz × 100 (wenn Umsatz eingegeben).</p>
+        <div class="info-ampel">
+          <span class="g">● FCF-Marge ≥ 15 % – stark</span>
+          <span class="y">● 5–14 % – in Ordnung</span>
+          <span class="r">● &lt; 5 % – gering</span>
+        </div>
+        <div class="info-sources">
+          <strong>Wo finde ich die Daten?</strong><br>
+          Cash Flow Statement → „Operating Cash Flow", „Capital Expenditures" (oft unter Investing Activities), „Stock-Based Compensation" (unter „Adjustments to reconcile net income").<br>
+          Alle drei direkt auf stockanalysis.com → Cash Flow Statement.
+        </div>
+      </div>
+
+      <div class="info-section">
+        <h3>Churn Rate</h3>
+        <p><strong>Was ist das?</strong> Wie viele Kunden verliert das Unternehmen in einem Zeitraum? Hoher Churn = „leimernen Eimer" (Pip Klöckner): teures Marketing oben hinein, läuft unten wieder heraus. Je niedriger, desto länger die durchschnittliche Kundenbindung und desto höher der LTV.</p>
+        <p><strong>Formel:</strong> Verlorene Kunden / Kunden zu Periodenbeginn × 100</p>
+        <div class="info-ampel">
+          <span class="g">● &lt; 5 % – sehr gut</span>
+          <span class="y">● 5–15 % – vertretbar</span>
+          <span class="r">● &gt; 15 % – kritisch</span>
+        </div>
+        <div class="info-sources">
+          <strong>Wo finde ich die Daten?</strong><br>
+          Selten direkt berichtet. Suche in: S-1 Filings (sec.gov), Earnings Call Transcript, Analyst Day Presentations. Alternativ: Kundenzahlen aus aufeinanderfolgenden Quartalsberichten rückrechnen (Bestandskunden Ende Q – Anfang Q = Wachstum netto → mit Neukunden gegenrechnen).
+        </div>
+      </div>
+
+      <div class="info-section">
+        <h3>LTV/CAC</h3>
+        <p><strong>Was ist das?</strong> Vergleicht den Wert eines Kunden über seine gesamte Lebensdauer (Lifetime Value, LTV) mit den Kosten, ihn zu gewinnen (Customer Acquisition Cost, CAC). Verhältnis 3:1 = für jeden Euro Akquise-Invest kommen 3 Euro zurück. Unter 1:1 ist das Geschäftsmodell nicht skalierbar.</p>
+        <p><strong>CAC</strong> = Vertriebs- & Marketingkosten / Neue Kunden im Zeitraum.</p>
+        <p><strong>LTV</strong> = Ø Monatsumsatz pro Kunde × Bruttomarge × (1 / monatliche Churn Rate) – oder direkt angegeben.</p>
+        <p><strong>Formel:</strong> LTV / CAC</p>
+        <div class="info-ampel">
+          <span class="g">● ≥ 3× – stark</span>
+          <span class="y">● 1–3× – Grenzbereich</span>
+          <span class="r">● &lt; 1× – kritisch, nicht skalierbar</span>
+        </div>
+        <div class="info-sources">
+          <strong>Wo finde ich die Daten?</strong><br>
+          CAC rüchrechnebar: Income Statement → Sales & Marketing Kosten / neue Kunden aus Earnings Call.<br>
+          LTV meist in S-1 Filings, Analyst Day Materials oder direkt im Earnings Call. Suchbegriff: „lifetime value", „customer acquisition cost", „payback period".<br>
+          Alternativ: ir.{unternehmen}.com → Presentations.
+        </div>
+      </div>
+
+      <hr class="info-hr">
+
+      <div class="info-section">
+        <h3>Allgemeine Datenquellen</h3>
+        <div class="info-sources">
+          <strong>sec.gov</strong> – Alle US-Quartals- (10-Q) und Jahresberichte (10-K). Suchfeld: Unternehmensname → Filings.<br>
+          <strong>stockanalysis.com</strong> – Strukturierte Finanzdaten: Income Statement, Cash Flow, Balance Sheet, Kennzahlen.<br>
+          <strong>macrotrends.net</strong> – Historische Margen und Kennzahlen im Zeitverlauf.<br>
+          <strong>finviz.com</strong> – Enterprise Value, Multiples, schneller Überblick.<br>
+          <strong>seekingalpha.com</strong> – Earnings Call Transcripts (kostenlos mit Account).<br>
+          <strong>ir.{unternehmen}.com</strong> – Investor Relations: Presentations, Earnings Releases, Analyst Days.
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<button class="back-top" id="back-top" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+<script>
+// ── Service Worker ────────────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/Aktien-Check/sw.js', { scope: '/Aktien-Check/' })
+    .then(reg => {
+      reg.update();
+      reg.addEventListener('updatefound', () => {
+        reg.installing.addEventListener('statechange', function () {
+          if (this.state === 'activated') location.reload();
+        });
+      });
+    });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible')
+      navigator.serviceWorker.ready.then(r => r.update());
+  });
+}
+
+// ── Pull-to-Refresh (löscht Eingaben) ────────────────────────────────────────
+const ptrEl = document.getElementById('ptr');
+let ptrY = 0, ptrActive = false;
+document.addEventListener('touchstart', e => {
+  if (window.scrollY === 0) { ptrY = e.touches[0].clientY; ptrActive = true; }
+}, { passive: true });
+document.addEventListener('touchmove', e => {
+  if (ptrActive && e.touches[0].clientY - ptrY > 50) ptrEl.classList.add('show');
+}, { passive: true });
+document.addEventListener('touchend', e => {
+  if (!ptrActive) return;
+  if (e.changedTouches[0].clientY - ptrY > 80) clearAll();
+  ptrEl.classList.remove('show');
+  ptrActive = false;
+}, { passive: true });
+
+// ── Scroll-to-Top ─────────────────────────────────────────────────────────────
+window.addEventListener('scroll', () => {
+  document.getElementById('back-top').classList.toggle('vis', window.scrollY > 300);
+});
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function val(id) {
+  const v = parseFloat(document.getElementById(id).value);
+  return isNaN(v) ? null : v;
+}
+function f1(n) { return n.toFixed(1); }
+function f2(n) { return (Math.abs(n) < 10 ? n.toFixed(2) : n.toFixed(1)); }
+
+// ── Calc Functions ────────────────────────────────────────────────────────────
+function calcRule40() {
+  const w = val('r40-wachstum'), m = val('r40-marge');
+  if (w === null || m === null) return null;
+  const s = w + m;
+  return { display: `${f1(s)} (${f1(w)} + ${f1(m)})`, color: s >= 40 ? 'green' : s >= 25 ? 'yellow' : 'red' };
+}
+function calcEVSales() {
+  const ev = val('evs-ev'), u = val('evs-umsatz');
+  if (ev === null || u === null || u <= 0) return null;
+  const m = ev / u;
+  return { display: `${f2(m)}× EV/Sales`, color: m < 10 ? 'green' : m <= 20 ? 'yellow' : 'red' };
+}
+function calcGM() {
+  const u = val('gm-umsatz'), c = val('gm-cogs');
+  if (u === null || c === null || u <= 0) return null;
+  const m = (u - c) / u * 100;
+  return { display: `${f1(m)} % Bruttomarge`, color: m >= 80 ? 'green' : m >= 60 ? 'yellow' : 'red' };
+}
+function calcNRR() {
+  const arr = val('nrr-arr'), exp = val('nrr-exp'), ch = val('nrr-churn');
+  if (arr === null || exp === null || ch === null || arr <= 0) return null;
+  const nrr = (arr + exp - ch) / arr * 100;
+  return { display: `${f1(nrr)} % NRR`, color: nrr >= 120 ? 'green' : nrr >= 100 ? 'yellow' : 'red' };
+}
+function calcSBCFCF() {
+  const fcf = val('sbc-fcf'), sbc = val('sbc-sbc');
+  if (fcf === null || sbc === null) return null;
+  const adj = fcf - sbc;
+  const u = val('sbc-umsatz');
+  if (u !== null && u > 0) {
+    const m = adj / u * 100;
+    return { display: `${f1(m)} % FCF-Marge nach SBC (${f2(adj)} Mio.)`, color: m >= 15 ? 'green' : m >= 5 ? 'yellow' : 'red' };
+  }
+  return { display: `${f2(adj)} Mio. bereinigter FCF (Umsatz fehlt → keine Ampel)`, color: null };
+}
+function calcChurn() {
+  const s = val('churn-start'), v = val('churn-verlust');
+  if (s === null || v === null || s <= 0) return null;
+  const r = v / s * 100;
+  return { display: `${f1(r)} % Churn Rate`, color: r < 5 ? 'green' : r <= 15 ? 'yellow' : 'red' };
+}
+function calcCAC() {
+  const ltv = val('cac-ltv'), cac = val('cac-cac');
+  if (ltv === null || cac === null || cac <= 0) return null;
+  const r = ltv / cac;
+  return { display: `${f2(r)}× LTV/CAC`, color: r >= 3 ? 'green' : r >= 1 ? 'yellow' : 'red' };
+}
+
+const CARDS = [
+  { id: 'rule40', fn: calcRule40 },
+  { id: 'evsales', fn: calcEVSales },
+  { id: 'gm', fn: calcGM },
+  { id: 'nrr', fn: calcNRR },
+  { id: 'sbcfcf', fn: calcSBCFCF },
+  { id: 'churn', fn: calcChurn },
+  { id: 'cac', fn: calcCAC }
+];
+
+// ── Recalc ────────────────────────────────────────────────────────────────────
+function recalc() {
+  let counts = { green: 0, yellow: 0, red: 0, rated: 0 };
+
+  CARDS.forEach(({ id, fn }) => {
+    const r = fn();
+    const badge = document.getElementById(`badge-${id}`);
+    const resultEl = document.getElementById(`result-${id}`);
+
+    badge.className = 'card-badge';
+    resultEl.className = 'card-result';
+    badge.textContent = '';
+    resultEl.textContent = '';
+
+    if (!r) return;
+
+    resultEl.textContent = r.display;
+
+    if (r.color) {
+      badge.classList.add(r.color);
+      resultEl.classList.add(r.color);
+      counts[r.color]++;
+      counts.rated++;
+    } else {
+      badge.textContent = '–';
+    }
+  });
+
+  updateScore(counts);
+  saveState();
+}
+
+// ── Score ─────────────────────────────────────────────────────────────────────
+function updateScore({ green, yellow, red, rated }) {
+  const el = document.getElementById('pip-score');
+  if (rated === 0) {
+    el.innerHTML = '<p class="score-empty">Noch keine Kennzahlen eingegeben.</p>';
+    return;
+  }
+  const pts = green * 3 + yellow * 2 + red * 1;
+  const pct = pts / (rated * 3);
+  const unrated = 7 - rated;
+
+  let label, lc;
+  if      (pct >= 0.80) { label = 'Stark';    lc = 'green'; }
+  else if (pct >= 0.60) { label = 'Solide';   lc = 'yellow'; }
+  else if (pct >= 0.40) { label = 'Gemischt'; lc = 'yellow'; }
+  else                  { label = 'Kritisch'; lc = 'red'; }
+
+  el.innerHTML = `
+    <div class="score-dots">
+      ${'<span class="dot green"></span>'.repeat(green)}
+      ${'<span class="dot yellow"></span>'.repeat(yellow)}
+      ${'<span class="dot red"></span>'.repeat(red)}
+      ${'<span class="dot empty"></span>'.repeat(unrated)}
+    </div>
+    <div class="score-summary">
+      <span class="score-label ${lc}">${label}</span>
+      <span class="score-detail">${green} grün · ${yellow} gelb · ${red} rot${unrated ? ' · ' + unrated + ' ausstehend' : ''}</span>
+    </div>
+  `;
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+const SK = 'aktien-check-state';
+
+function saveState() {
+  const s = { firma: document.getElementById('firma').value };
+  document.querySelectorAll('input[type="number"]').forEach(el => { s[el.id] = el.value; });
+  localStorage.setItem(SK, JSON.stringify(s));
+}
+
+function restoreState() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SK) || '{}');
+    Object.entries(s).forEach(([id, v]) => {
+      const el = document.getElementById(id);
+      if (el && v !== '') el.value = v;
+    });
+  } catch (e) {}
+  recalc();
+}
+
+function clearAll() {
+  document.querySelectorAll('input').forEach(el => el.value = '');
+  localStorage.removeItem(SK);
+  recalc();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+restoreState();
+</script>
+</body>
+</html>
