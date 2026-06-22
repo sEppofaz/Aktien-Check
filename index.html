@@ -716,8 +716,8 @@ async function kiFill() {
     // Hinweis
     const hint = document.getElementById('ki-hint');
     const conf = d.ki_konfidenz || 'niedrig';
-    const note = d.ki_hinweis ?  : '';
-    hint.textContent = ;
+    const note = d.ki_hinweis ? ` · ${d.ki_hinweis}` : '';
+    hint.textContent = `Konfidenz: ${conf}${note}`;
     hint.style.display = 'block';
 
     recalc();
