@@ -255,6 +255,31 @@
     .info-sources strong { color: var(--text); }
     hr.info-hr { border: none; border-top: 1px solid var(--bg3); margin: 0 0 22px; }
 
+    /* Autocomplete */
+    #ac-list {
+      position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+      background: #1a5c47; border-radius: 10px;
+      overflow: hidden; z-index: 200;
+      box-shadow: 0 4px 16px rgba(0,0,0,.3);
+      display: none;
+    }
+    #ac-list.open { display: block; }
+    .ac-item {
+      padding: 10px 13px; cursor: pointer;
+      display: flex; align-items: center; gap: 8px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .ac-item:last-child { border-bottom: none; }
+    .ac-item:hover, .ac-item.active { background: rgba(255,255,255,.12); }
+    .ac-ticker {
+      font-size: .8rem; font-weight: 700; color: #fff;
+      background: rgba(255,255,255,.2); border-radius: 5px;
+      padding: 2px 7px; flex-shrink: 0; font-family: monospace;
+    }
+    .ac-name { font-size: .88rem; color: rgba(255,255,255,.85); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ac-de { font-size: .68rem; color: rgba(255,255,255,.4); flex-shrink: 0; }
+    #firma-wrap { position: relative; }
+
     /* KI-Button */
     #ki-row { margin-top: 8px; display: flex; gap: 8px; align-items: center; }
     #btn-ki {
@@ -304,7 +329,12 @@
     <h1>Aktien-Check</h1>
     <button id="btn-info" onclick="document.getElementById('info-overlay').classList.add('show')" aria-label="Info">Info</button>
   </div>
-  <input type="text" id="firma" placeholder="Firmenname / Ticker (z.B. CRM)" oninput="saveState(); updateKiBtn()">
+  <div id="firma-wrap">
+    <input type="text" id="firma" placeholder="Firmenname oder Ticker suchen…" autocomplete="off"
+           oninput="saveState(); updateKiBtn(); acInput()"
+           onkeydown="acKey(event)" onblur="setTimeout(acClose, 150)">
+    <div id="ac-list"></div>
+  </div>
   <div id="ki-row">
     <button id="btn-ki" onclick="kiFill()" disabled>✦ KI-Felder befüllen</button>
   </div>
@@ -639,8 +669,8 @@ function updateKiBtn() {
 async function kiFill() {
   const raw = document.getElementById('firma').value.trim();
   if (!raw) return;
-  // Ticker = letztes Wort in Großbuchstaben oder ganzer Eingabe
-  const ticker = raw.split(/\s+/).pop().toUpperCase();
+  // Aus Autocomplete-Auswahl oder letztes Wort extrahieren
+  const ticker = (_selectedTicker || raw.match(/\(([^)]+)\)$/)?.at(1) || raw.split(/\s+/).pop()).toUpperCase();
 
   const btn = document.getElementById('btn-ki');
   btn.disabled = true;
@@ -869,6 +899,7 @@ function restoreState() {
     });
   } catch (e) {}
   recalc();
+  updateKiBtn();
 }
 
 function clearAll() {
@@ -879,6 +910,74 @@ function clearAll() {
   hint.textContent = ''; hint.style.display = 'none';
   updateKiBtn();
   recalc();
+}
+
+// ── Autocomplete ─────────────────────────────────────────────────────────────
+const _AC_URL    = 'https://umbenennen.duckdns.org/aktien-search';
+let _acTimer     = null;
+let _acIdx       = -1;
+let _acResults   = [];
+let _selectedTicker = '';
+
+function acInput() {
+  const q = document.getElementById('firma').value.trim();
+  _selectedTicker = '';
+  clearTimeout(_acTimer);
+  if (q.length < 2) { acClose(); return; }
+  _acTimer = setTimeout(() => acFetch(q), 280);
+}
+
+async function acFetch(q) {
+  try {
+    const res = await fetch(`${_AC_URL}?q=${encodeURIComponent(q)}`);
+    _acResults = await res.json();
+    if (!Array.isArray(_acResults) || !_acResults.length) { acClose(); return; }
+    const list = document.getElementById('ac-list');
+    list.innerHTML = _acResults.map((r, i) =>
+      `<div class="ac-item" data-i="${i}" onmousedown="acSelect(${i})">
+        <span class="ac-ticker">${r.ticker}</span>
+        <span class="ac-name">${r.name}</span>
+        ${r.us ? '' : '<span class="ac-de">intl</span>'}
+      </div>`
+    ).join('');
+    _acIdx = -1;
+    list.classList.add('open');
+  } catch(e) {}
+}
+
+function acSelect(i) {
+  const r = _acResults[i];
+  if (!r) return;
+  _selectedTicker = r.ticker;
+  document.getElementById('firma').value = r.name + ' (' + r.ticker + ')';
+  acClose();
+  updateKiBtn();
+  saveState();
+}
+
+function acKey(e) {
+  const list = document.getElementById('ac-list');
+  if (!list.classList.contains('open')) return;
+  const items = list.querySelectorAll('.ac-item');
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    _acIdx = Math.min(_acIdx + 1, items.length - 1);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    _acIdx = Math.max(_acIdx - 1, 0);
+  } else if (e.key === 'Enter' && _acIdx >= 0) {
+    e.preventDefault();
+    acSelect(_acIdx);
+    return;
+  } else if (e.key === 'Escape') {
+    acClose(); return;
+  } else { return; }
+  items.forEach((el, i) => el.classList.toggle('active', i === _acIdx));
+}
+
+function acClose() {
+  document.getElementById('ac-list').classList.remove('open');
+  _acIdx = -1;
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
