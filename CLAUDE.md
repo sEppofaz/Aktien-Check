@@ -3,7 +3,8 @@
 ## App
 Tech-Aktien Kennzahlen-Screener nach Philipp „Pip" Klöckner (Doppelgänger-Podcast).
 7 Kennzahlen: Rule of 40, EV/Sales, Bruttomarge, NRR, SBC-adj. FCF, Churn Rate, LTV/CAC.
-Rein client-seitig, kein Backend. State wird in localStorage gespeichert. Pull-to-Refresh löscht alle Eingaben.
+State in localStorage. Pull-to-Refresh löscht alle Eingaben.
+KI-Befüllung via Hetzner-Backend (Yahoo Finance + Claude Haiku). Primär auf iPhone genutzt.
 
 ## URLs
 - Live: https://seppofaz.github.io/Aktien-Check/
@@ -40,3 +41,32 @@ Methode A (macOS): qlmanage + sips (siehe BKM/PWA-Standards.md)
 Punkte: grün=3, gelb=2, rot=1. Score = Punkte / (bewertete Kennzahlen × 3).
 Label: ≥80 % → Stark, ≥60 % → Solide, ≥40 % → Gemischt, <40 % → Kritisch.
 SBC-adj. FCF ohne Umsatz-Eingabe erhält keine Ampel und fließt nicht in den Score ein.
+
+---
+
+## KI-Befüllung (Backend – Hetzner)
+
+- **Endpoint:** `POST https://umbenennen.duckdns.org/aktien-lookup`
+- **Auth:** `X-Token: AKTIEN_LOOKUP_SECRET` (in `/etc/pka/secrets.env`)
+- **Blueprint:** `/opt/rename-webhook/services/aktien/routes.py`
+- **Yahoo Finance:** EV, Umsatz, Wachstum, Bruttomarge, FCF, SBC → direkte Felder
+- **Claude Haiku:** NRR %, Churn %, LTV/CAC × → als Komponentenwerte zurückgerechnet, mit `~KI`-Badge markiert
+- **NRR-Rückrechnung:** arr=1000, churn=30, expansion = (nrr%/100−1)×1000+30
+- **Kosten:** ~0,001 € / Lookup (Haiku)
+
+## Autocomplete (Backend)
+
+- **Endpoint:** `GET https://umbenennen.duckdns.org/aktien-search?q=...`
+- **Kein Token** (nur Lesen, öffentliche Daten)
+- **yfinance Search**, filtert auf EQUITY, US-Börsen zuerst
+- **Debounce:** 280 ms
+
+## iOS-Pitfalls
+
+- Dropdown muss `position:fixed` als `<body>`-Kind sein – nicht im sticky Header (wird sonst abgeschnitten)
+- Dropdown-Items: `onpointerdown + e.preventDefault()` statt `onmousedown` → verhindert Blur vor Auswahl
+- Touch-Targets: min 44px (iOS HIG)
+- `restoreState()` muss `updateKiBtn()` aufrufen, sonst bleibt Button nach Reload disabled
+
+## SW-Pitfall
+Kein `reg.update()` + `location.reload()` bei `controllerchange` – verursacht Reload-Loop. SW hat `skipWaiting()` selbst im Install-Handler.
