@@ -70,3 +70,6 @@ SBC-adj. FCF ohne Umsatz-Eingabe erhält keine Ampel und fließt nicht in den Sc
 
 ## SW-Pitfall
 Kein `reg.update()` + `location.reload()` bei `controllerchange` – verursacht Reload-Loop. SW hat `skipWaiting()` selbst im Install-Handler.
+
+## Template-Literal-Pitfall (Vorfall 2026-06-22)
+Template-Literal-Backticks (`` ` ``) in `kiFill()` fehlten → SyntaxError → **gesamter `<script>`-Block parsete nicht** → App komplett funktionslos. Immer nach Änderungen an JS-Strings die Template-Literals enthalten prüfen ob Backticks korrekt gesetzt sind (Python `repr()` oder `python3 -c "with open(...) as f: print(f.read())"` auf verdächtige Zeilen).
