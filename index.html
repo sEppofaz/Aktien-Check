@@ -255,6 +255,32 @@
     .info-sources strong { color: var(--text); }
     hr.info-hr { border: none; border-top: 1px solid var(--bg3); margin: 0 0 22px; }
 
+    /* KI-Button */
+    #ki-row { margin-top: 8px; display: flex; gap: 8px; align-items: center; }
+    #btn-ki {
+      flex: 1; background: rgba(255,255,255,.18); border: none; border-radius: 10px;
+      color: #fff; font-size: .88rem; font-weight: 600; padding: 9px 14px;
+      cursor: pointer; transition: background .15s; min-height: 40px;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    #btn-ki:disabled { opacity: .4; cursor: default; }
+    #btn-ki:not(:disabled):active { background: rgba(255,255,255,.3); }
+    .ki-spin {
+      width: 13px; height: 13px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,.3); border-top-color: #fff;
+      animation: spin .7s linear infinite; flex-shrink: 0;
+    }
+    .ki-badge {
+      font-size: .65rem; font-weight: 700; background: var(--yellow-bg);
+      color: var(--yellow-text); border-radius: 4px; padding: 1px 5px;
+      margin-left: 4px; vertical-align: middle;
+    }
+    #ki-hint {
+      font-size: .75rem; color: var(--muted); margin-top: 10px;
+      padding: 8px 10px; background: var(--yellow-bg); color: var(--yellow-text);
+      border-radius: 8px; line-height: 1.45; display: none;
+    }
+
     /* Back to top */
     .back-top {
       position: fixed; bottom: calc(24px + env(safe-area-inset-bottom)); right: 16px;
@@ -278,7 +304,10 @@
     <h1>Aktien-Check</h1>
     <button id="btn-info" onclick="document.getElementById('info-overlay').classList.add('show')" aria-label="Info">Info</button>
   </div>
-  <input type="text" id="firma" placeholder="Firmenname / Ticker" oninput="saveState()">
+  <input type="text" id="firma" placeholder="Firmenname / Ticker (z.B. CRM)" oninput="saveState(); updateKiBtn()">
+  <div id="ki-row">
+    <button id="btn-ki" onclick="kiFill()" disabled>✦ KI-Felder befüllen</button>
+  </div>
 </header>
 
 <main>
@@ -428,6 +457,7 @@
   <div class="score-box">
     <div class="score-title">Pip-Score</div>
     <div id="pip-score"><p class="score-empty">Noch keine Kennzahlen eingegeben.</p></div>
+    <div id="ki-hint"></div>
     <button class="btn-reset" onclick="clearAll()">Alles löschen</button>
   </div>
 
@@ -594,18 +624,80 @@
 // ── Service Worker ────────────────────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/Aktien-Check/sw.js', { scope: '/Aktien-Check/' })
-    .then(reg => {
-      reg.update();
-      reg.addEventListener('updatefound', () => {
-        reg.installing.addEventListener('statechange', function () {
-          if (this.state === 'activated') location.reload();
-        });
-      });
+    .catch(e => console.warn('[sw]', e));
+}
+
+// ── KI-Lookup ─────────────────────────────────────────────────────────────────
+const _KI_URL   = 'https://umbenennen.duckdns.org/aktien-lookup';
+const _KI_TOKEN = '9F5-GS_pVHGgw_qKdd8eR0R-303okAGGcnZf1MZb2kg';
+
+function updateKiBtn() {
+  const btn = document.getElementById('btn-ki');
+  btn.disabled = !document.getElementById('firma').value.trim();
+}
+
+async function kiFill() {
+  const raw = document.getElementById('firma').value.trim();
+  if (!raw) return;
+  // Ticker = letztes Wort in Großbuchstaben oder ganzer Eingabe
+  const ticker = raw.split(/\s+/).pop().toUpperCase();
+
+  const btn = document.getElementById('btn-ki');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="ki-spin"></span> Lade…';
+
+  try {
+    const res = await fetch(_KI_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Token': _KI_TOKEN },
+      body: JSON.stringify({ ticker })
     });
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible')
-      navigator.serviceWorker.ready.then(r => r.update());
-  });
+    if (!res.ok) throw new Error(await res.text());
+    const d = await res.json();
+
+    // Firmenname ins Feld schreiben
+    if (d.firma) document.getElementById('firma').value = d.firma;
+
+    // Felder befüllen
+    Object.entries(d.felder || {}).forEach(([id, v]) => {
+      const el = document.getElementById(id);
+      if (el) el.value = v;
+    });
+
+    // KI-Badge auf betroffenen Cards
+    document.querySelectorAll('.card-title .ki-badge').forEach(b => b.remove());
+    const kiFelder = Object.entries(d.quellen || {})
+      .filter(([, q]) => q === 'ki-geschätzt').map(([k]) => k);
+    const kiCards = new Set();
+    kiFelder.forEach(fid => {
+      const el = document.getElementById(fid);
+      if (el) { const card = el.closest('.card'); if (card) kiCards.add(card); }
+    });
+    kiCards.forEach(card => {
+      const title = card.querySelector('.card-title');
+      if (title && !title.querySelector('.ki-badge')) {
+        const b = document.createElement('span');
+        b.className = 'ki-badge'; b.textContent = '~KI';
+        title.appendChild(b);
+      }
+    });
+
+    // Hinweis
+    const hint = document.getElementById('ki-hint');
+    const conf = d.ki_konfidenz || 'niedrig';
+    const note = d.ki_hinweis ?  : '';
+    hint.textContent = ;
+    hint.style.display = 'block';
+
+    recalc();
+    saveState();
+
+  } catch (e) {
+    alert('KI-Lookup fehlgeschlagen: ' + e.message);
+  } finally {
+    btn.innerHTML = '✦ KI-Felder befüllen';
+    updateKiBtn();
+  }
 }
 
 // ── Pull-to-Refresh (löscht Eingaben) ────────────────────────────────────────
@@ -782,6 +874,10 @@ function restoreState() {
 function clearAll() {
   document.querySelectorAll('input').forEach(el => el.value = '');
   localStorage.removeItem(SK);
+  document.querySelectorAll('.ki-badge').forEach(b => b.remove());
+  const hint = document.getElementById('ki-hint');
+  hint.textContent = ''; hint.style.display = 'none';
+  updateKiBtn();
   recalc();
 }
 
