@@ -47,7 +47,8 @@ SBC-adj. FCF ohne Umsatz-Eingabe erhält keine Ampel und fließt nicht in den Sc
 ## KI-Befüllung (Backend – Hetzner)
 
 - **Endpoint:** `POST https://umbenennen.duckdns.org/aktien-lookup`
-- **Auth:** `X-Token: AKTIEN_LOOKUP_SECRET` (in `/etc/pka/secrets.env`)
+- **Auth:** Kein Client-Token mehr. Schutz via nginx `claude_zone` Rate-Limit (burst=3). `AKTIEN_LOOKUP_SECRET` in secrets.env ist obsolet (ADR-001).
+- **Sicherheitsregel:** Nie wieder einen Token/Secret in den Frontend-HTML-Code schreiben – Static PWA auf GitHub Pages ist public. Rate-Limiting auf Backend-Seite ist der einzige korrekte Ansatz.
 - **Blueprint:** `/opt/rename-webhook/services/aktien/routes.py`
 - **Yahoo Finance:** EV, Umsatz, Wachstum, Bruttomarge, FCF, SBC → direkte Felder
 - **Claude Haiku:** NRR %, Churn %, LTV/CAC × → als Komponentenwerte zurückgerechnet, mit `~KI`-Badge markiert
