@@ -103,9 +103,16 @@
       background: rgba(255,255,255,.12);
       border: none; border-radius: 10px;
       color: #fff; font-size: 1rem;
-      padding: 10px 12px; outline: none;
+      padding: 10px 36px 10px 12px; outline: none;
     }
     #firma::placeholder { color: rgba(255,255,255,.5); }
+    #firma-clear {
+      position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: rgba(255,255,255,.5);
+      font-size: 1.1rem; cursor: pointer; padding: 4px; line-height: 1;
+      display: none;
+    }
+    #firma-clear:hover { color: #fff; }
 
     /* Main */
     main {
@@ -333,8 +340,9 @@
   </div>
   <div id="firma-wrap">
     <input type="text" id="firma" placeholder="Firmenname oder Ticker suchen…" autocomplete="off"
-           oninput="saveState(); updateKiBtn(); acInput()"
+           oninput="saveState(); updateKiBtn(); acInput(); toggleFirmaClear()"
            onkeydown="acKey(event)" onblur="setTimeout(acClose, 200)">
+    <button id="firma-clear" onclick="clearFirma()" aria-label="Eingabe löschen">✕</button>
   </div>
   <div id="ki-row">
     <button id="btn-ki" onclick="kiFill()" disabled>✦ KI-Felder befüllen</button>
@@ -659,8 +667,7 @@ if ('serviceWorker' in navigator) {
 }
 
 // ── KI-Lookup ─────────────────────────────────────────────────────────────────
-const _KI_URL   = 'https://umbenennen.duckdns.org/aktien-lookup';
-const _KI_TOKEN = '9F5-GS_pVHGgw_qKdd8eR0R-303okAGGcnZf1MZb2kg';
+const _KI_URL = 'https://umbenennen.duckdns.org/aktien-lookup';
 
 function updateKiBtn() {
   const btn = document.getElementById('btn-ki');
@@ -680,7 +687,7 @@ async function kiFill() {
   try {
     const res = await fetch(_KI_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Token': _KI_TOKEN },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ticker })
     });
     if (!res.ok) throw new Error(await res.text());
@@ -910,7 +917,23 @@ function clearAll() {
   const hint = document.getElementById('ki-hint');
   hint.textContent = ''; hint.style.display = 'none';
   updateKiBtn();
+  toggleFirmaClear();
   recalc();
+}
+
+function clearFirma() {
+  const f = document.getElementById('firma');
+  f.value = '';
+  f.focus();
+  acClose();
+  saveState();
+  updateKiBtn();
+  toggleFirmaClear();
+}
+
+function toggleFirmaClear() {
+  const val = document.getElementById('firma').value;
+  document.getElementById('firma-clear').style.display = val ? 'block' : 'none';
 }
 
 // ── Autocomplete ─────────────────────────────────────────────────────────────
@@ -989,6 +1012,7 @@ function acClose() {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 restoreState();
+toggleFirmaClear();
 </script>
 </body>
 </html>
